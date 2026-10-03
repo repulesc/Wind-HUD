@@ -1,0 +1,57 @@
+# WIND SETTINGS
+# Put this text in a notecard named exactly:  Wind Settings
+# and drop it into the HUD. Wind reads it when you save it.
+#
+# Each line is   name = value   and everything after # is a note.
+# Delete a line (or put # in front) to use the default value shown.
+# Try a value first with chat:   /8 set speed_cruise 7
+# (lasts until the notecard is read again), then write here what you like.
+# /8 settings lists the values in use.
+
+
+# ---- SPEED (metres per second) ----------------------------------------
+# For comparison: walking is about 3, running about 5.
+speed_gentle  = 3.5     # sightseeing
+speed_cruise  = 8       # normal
+speed_fast    = 16      # crossing a region
+boost         = 1.8     # double-tap W and keep holding: speed times this
+surface_speed = 0.8     # on the water: speed times this
+dive_speed    = 0.5     # under the water: speed times this
+
+
+# ---- FEEL (seconds: smaller is snappier, bigger is floatier) ----------
+accel  = 0.6    # how gently you get up to speed
+turn   = 0.3    # how quickly your path follows when you turn
+coast  = 1.0    # how long you drift on after letting go of the keys
+brake  = 0.35   # how quickly you stop when you press back (S)
+follow = 0.35   # how tightly your avatar follows the wind (0.05 = stiff)
+
+
+# ---- GLIDE HEIGHT (metres between your feet and whatever is below:
+#      land, roofs, trees or water) --------------------------------------
+height_low  = 4
+height_mid  = 15
+height_high = 40
+height_min  = 2      # holding C below this settles you on the water / ground
+height_max  = 80     # holding E stops here
+rise_speed  = 4      # how fast E / C move you up and down (m/s)
+climb_rate  = 6      # fastest climb over hills and buildings (m/s)
+sink_rate   = 2.5    # fastest gentle sink when the ground drops away (m/s)
+
+
+# ---- WATER ------------------------------------------------------------
+surface_ride = 0.15  # on the water: feet this far above it. Use a minus
+                     # number to sit in the water, e.g. -0.9 for a
+                     # swimming-on-the-surface animation
+land_skim    = 1.0   # Surface level over land: feet this far above it
+dive_depth   = 2.5   # a dive takes you this far under the surface (m)
+bob          = 1.0   # waves and floating motion (0 = none, 2 = double)
+
+
+# ---- CAMERA, SOUND, HUD -----------------------------------------------
+camera   = on       # off: Wind leaves your camera alone
+cam_zoom = 1.0      # camera distance times this (0.5 to 2)
+sound    = on       # Wind's sounds, if the HUD has any
+volume   = 0.6      # 0 to 1
+hud_text = on       # the status line above the HUD
+channel  = 8        # chat commands: /8 help

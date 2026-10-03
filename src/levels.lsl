@@ -1,0 +1,462 @@
+// ---------------------------------------------------------------------
+// WIND - LEVELS
+// Decides where you should be. It looks around (the land with llGround,
+// objects with llCastRay, the water with llWater), handles E / C and the
+// changes of level, and ten times a second tells the Engine the height
+// to hold (EVT_AIM). The Engine does the travelling.
+//
+//   Glide    your feet a chosen height above the highest thing below
+//            and just ahead of you: land, roofs, trees or water
+//   Surface  on the water, riding its waves; over land, just above it
+//   Dive     under the water, between the bottom and the surface
+//
+// E / C go up and down. Keep holding C below the lowest glide and you
+// settle on the water (over land you skim it, and holding on lands you).
+// On the water C dives and E lifts you off; under water E at the top
+// brings you up. Something in the way: we climb over it, and tell the
+// Engine to slow down so there is time to.
+// ---------------------------------------------------------------------
+// @include common
+
+float TICK = 0.1;          // seconds between updates
+float FAR = -1000.0;       // a ray height meaning "nothing there"
+
+// settings (EVT_SETTINGS reads them again)
+list  heights;             // Low, Mid, High
+float s_min;
+float s_max;
+float s_rise;
+float s_climb;
+float s_sink;
+float s_ride;
+float s_skim;
+float s_depth;
+float s_bob;
+
+key     owner;
+integer on;                // Wind is on and the keys are ours
+integer starting;          // asked for the keys, waiting
+integer level;
+float   height = 4.0;      // Glide: wanted gap between your feet and what is below
+integer asked = -1;        // level asked for when starting (-1 = choose)
+integer landing;
+integer halting;           // landed: asked the Engine to switch off
+integer transit;           // a big change you asked for: may go faster
+float   zt;                // the height we hold (avatar centre), before bobbing
+float   dive_z;            // Dive: the depth you chose, as a height
+float   land_z;            // landing: where the avatar centre settles
+float   land_t;
+float   half = 0.9;        // half the avatar's height
+float   water;
+float   solid;             // top of the land/objects below and just ahead (held a moment)
+float   solid_t;           // when solid was last raised
+float   wall;              // distance to something in the way ahead, 0 = clear
+integer wet;               // water below (Glide, Surface) or around (Dive)
+integer far;               // the downward ray looks near and far by turns
+float   t_last;
+integer held;              // control bits held now
+integer pressed;           // E / C presses since the last update
+float   hold_t;            // since when E / C has been held at the end of its range
+integer h_dirty;           // height changed with E / C and not saved yet
+integer debug;
+float   dbg_t;
+
+Load() {
+    heights = [Cfg("height_low"), Cfg("height_mid"), Cfg("height_high")];
+    s_min = Cfg("height_min");
+    s_max = Cfg("height_max");
+    if (s_max < s_min) s_max = s_min;
+    s_rise = Cfg("rise_speed");
+    s_climb = Cfg("climb_rate");
+    s_sink = Cfg("sink_rate");
+    s_ride = Cfg("surface_ride");
+    s_skim = Cfg("land_skim");
+    s_depth = Cfg("dive_depth");
+    s_bob = Cfg("bob");
+}
+
+// The same point, moved inside this region: llGround and llCastRay only
+// see the region we are in.
+vector InRegion(vector p) {
+    if (p.x < 0.5) p.x = 0.5;
+    else if (p.x > 255.5) p.x = 255.5;
+    if (p.y < 0.5) p.y = 0.5;
+    else if (p.y > 255.5) p.y = 255.5;
+    return p;
+}
+
+// Land height at a point (llGround wants it as an offset from us).
+float Ground(vector pos, vector p) {
+    return llGround(InRegion(p) - pos);
+}
+
+// The first land or object a ray meets, or <0, 0, FAR> if none.
+vector Hit(vector a, vector b) {
+    list r = llCastRay(a, InRegion(b), [RC_REJECT_TYPES, RC_REJECT_AGENTS, RC_MAX_HITS, 1]);
+    if (llList2Integer(r, -1) > 0) return llList2Vector(r, 1);
+    return <0.0, 0.0, FAR>;
+}
+
+// What is below and ahead. Sets solid (the highest land or object under
+// us and just ahead, held for a moment so the gaps between roofs or
+// trees do not make us dip) and wall (how far something is in the way,
+// looking towards `ahead`).
+Sense(vector pos, vector vel, vector ahead, float now, float dt) {
+    float sp = llVecMag(vel);
+    vector mdir;
+    if (sp > 0.3) mdir = vel / sp;
+    float top = Ground(pos, pos);
+    float y = Ground(pos, pos + mdir * (sp * 0.6));
+    if (y > top) top = y;
+    y = Ground(pos, pos + mdir * (sp * 1.2 + 2.0));
+    if (y > top) top = y;
+    // objects below: one ray straight down, just ahead and further ahead by turns
+    vector p = pos + mdir * (sp * 0.4);
+    if (far) p = pos + mdir * (sp * 1.2 + 2.0);
+    far = !far;
+    p = InRegion(p);
+    vector h = Hit(<p.x, p.y, pos.z + 0.5>, <p.x, p.y, top - 1.0>);
+    if (h.z > top) top = h.z;
+    // in the way: a ray from our middle ahead and down to the level of our feet
+    wall = 0.0;
+    if (ahead != ZERO_VECTOR) {
+        vector e = pos + ahead * (2.0 + sp);
+        h = Hit(pos, <e.x, e.y, pos.z - half + 0.1>);
+        if (h.z > FAR) {
+            wall = llVecDist(<pos.x, pos.y, 0.0>, <h.x, h.y, 0.0>) + 0.01;
+            if (h.z > top) top = h.z;
+        }
+    }
+    if (top >= solid) {
+        solid = top;
+        solid_t = now;
+    } else if (now - solid_t > 1.2) {
+        solid -= s_sink * 2.0 * dt;
+        if (solid < top) solid = top;
+    }
+}
+
+SetLevel(integer lv) {
+    if (lv == level) return;
+    if (lv == L_DIVE) {
+        dive_z = water - half - s_depth;
+        Send(EVT_SPLASH, "in");
+    } else if (level == L_DIVE) Send(EVT_SPLASH, "out");
+    level = lv;
+    transit = TRUE;
+    hold_t = llGetTime();
+}
+
+// A level asked for from the HUD, the menu or chat.
+ChangeLevel(integer lv) {
+    if (lv < 0 || lv > 2) return;
+    landing = FALSE;
+    if (lv == L_DIVE && level != L_DIVE && water - solid < half * 2.0 + 1.0) {
+        Say("Dive needs deep water below you. Glide out over the sea first.");
+        return;
+    }
+    if (lv == L_GLIDE && level != L_GLIDE && height < s_min) height = llList2Float(heights, 0);
+    SetLevel(lv);
+}
+
+SetHeight(string how) {
+    integer i = llListFindList(["low", "mid", "high"], [how]);
+    float h;
+    if (i != -1) h = llList2Float(heights, i);
+    else if (how == "up") {
+        // the next preset up; above High, 10 m more each time
+        h = height + 10.0;
+        for (i = 2; i >= 0; --i) if (llList2Float(heights, i) > height + 0.5) h = llList2Float(heights, i);
+    } else if (how == "down") {
+        h = s_min;
+        for (i = 0; i < 3; ++i) if (llList2Float(heights, i) < height - 0.5) h = llList2Float(heights, i);
+    } else return;
+    if (h < s_min) h = s_min;
+    if (h > s_max) h = s_max;
+    height = h;
+    llLinksetDataWrite("st:height", (string)height);
+    transit = TRUE;
+    if (!on) asked = L_GLIDE;           // the Engine starts Wind
+    else ChangeLevel(L_GLIDE);
+}
+
+// The keys are ours: choose the level and start aiming.
+Begin() {
+    starting = FALSE;
+    vector pos = llList2Vector(llGetObjectDetails(owner, [OBJECT_POS]), 0);
+    vector size = llGetAgentSize(owner);
+    half = size.z * 0.5;
+    if (half < 0.4) half = 0.9;
+    water = llWater(ZERO_VECTOR);
+    float now = llGetTime();
+    zt = pos.z;
+    solid = llGround(ZERO_VECTOR);
+    solid_t = now;
+    far = FALSE;
+    Sense(pos, ZERO_VECTOR, ZERO_VECTOR, now, 0.0);   // what we stand on: land, a floor, a deck
+    held = 0;
+    pressed = 0;
+    landing = FALSE;
+    halting = FALSE;
+    t_last = now;
+    hold_t = now;
+    integer under = pos.z < water - 0.3;
+    integer lv = asked;
+    asked = -1;
+    if (lv < 0) {
+        lv = L_GLIDE;
+        if (under) lv = L_DIVE;
+    }
+    if (lv == L_DIVE && !under && water - solid < half * 2.0 + 1.0) {
+        Say("Dive needs deep water below you. Glide out over the sea first.");
+        Send(CMD_HALT, "");
+        return;
+    }
+    if (height < s_min || height > s_max) height = llList2Float(heights, 0);
+    level = lv;
+    dive_z = water - half - s_depth;
+    if (under) dive_z = pos.z + 0.3;
+    transit = TRUE;
+    on = TRUE;
+    llSetTimerEvent(TICK);
+    Tick();
+}
+
+Off() {
+    on = FALSE;
+    starting = FALSE;
+    landing = FALSE;
+    llSetTimerEvent(0.0);
+    if (llGetPermissions() & PERMISSION_TAKE_CONTROLS) llReleaseControls();
+    if (h_dirty) llLinksetDataWrite("st:height", (string)height);
+    h_dirty = FALSE;
+}
+
+Tick() {
+    float now = llGetTime();
+    float dt = now - t_last;
+    t_last = now;
+    if (dt > 0.3) dt = 0.3;
+    list d = llGetObjectDetails(owner, [OBJECT_POS, OBJECT_ROT, OBJECT_VELOCITY]);
+    if (d == []) return;
+    vector pos = llList2Vector(d, 0);
+    vector fwd = llRot2Fwd(llList2Rot(d, 1));
+    vector vel = llList2Vector(d, 2);
+    fwd.z = 0.0;
+    fwd = llVecNorm(fwd);
+    vel.z = 0.0;
+    float sp = llVecMag(vel);
+    water = llWater(ZERO_VECTOR);
+
+    // look around: ahead is where you are going, or where you face as you set off
+    vector ahead;
+    if (sp > 0.3) ahead = vel / sp;
+    if (held & CONTROL_FWD) ahead = fwd;
+    else if (held & CONTROL_BACK) ahead = -fwd;
+    Sense(pos, vel, ahead, now, dt);
+    float base = solid;
+    if (water > base) base = water;
+    if (level == L_DIVE) wet = TRUE;
+    else wet = water > solid + 0.05;
+
+    // ---- E / C, and the height to aim for
+    integer up = held & CONTROL_UP;
+    integer down = held & CONTROL_DOWN;
+    if (up && down) {
+        up = 0;
+        down = 0;
+    }
+    integer up_now = pressed & CONTROL_UP;
+    integer down_now = pressed & CONTROL_DOWN;
+    pressed = 0;
+    float target;
+    float ceiling = base + half + s_max;
+    if (landing) {
+        land_z = base + half + 0.1;
+        if (level == L_DIVE) land_z = solid + half + 0.1;
+        target = land_z;
+    } else if (level == L_GLIDE) {
+        if (up) {
+            height += s_rise * dt;
+            if (height > s_max) height = s_max;
+            h_dirty = TRUE;
+            hold_t = now;
+        } else if (down) {
+            if (height > s_min) {
+                height -= s_rise * dt;
+                if (height < s_min) height = s_min;
+                h_dirty = TRUE;
+                hold_t = now;
+            } else if (down_now || now - hold_t > 0.6) SetLevel(L_SURFACE);   // below the lowest glide: onto the water or the land
+        } else hold_t = now;
+        target = base + half + height;
+    } else if (level == L_SURFACE) {
+        if (up_now) {
+            height = llList2Float(heights, 0);
+            SetLevel(L_GLIDE);
+        } else if (down && !wet) {
+            if (now - hold_t > 0.8) {
+                // hold C over land: land
+                landing = TRUE;
+                land_t = now;
+            }
+        } else {
+            if (down_now) {
+                if (water - solid > half * 2.0 + 1.0) SetLevel(L_DIVE);
+                else Say("Too shallow to dive here.");
+            }
+            hold_t = now;
+        }
+        if (wet) target = water + half + s_ride;
+        else target = solid + half + s_skim;
+    } else {
+        ceiling = water - half - 0.25;
+        float lo = solid + half + 0.5;
+        if (ceiling < lo) {
+            // the water got too shallow: come up
+            SetLevel(L_SURFACE);
+            target = water + half + s_ride;
+        } else {
+            float vz;
+            if (up) vz = s_rise * 0.6;
+            else if (down) vz = -s_rise * 0.6;
+            if (llGetAgentInfo(owner) & AGENT_MOUSELOOK) if (llGetPermissions() & PERMISSION_TRACK_CAMERA) {
+                // in mouselook you swim where you look
+                float f;
+                if (held & CONTROL_FWD) f = 1.0;
+                else if (held & CONTROL_BACK) f = -0.5;
+                vector cf = llRot2Fwd(llGetCameraRot());
+                vz += cf.z * f * (sp + 1.0);
+            }
+            dive_z += vz * dt;
+            if (dive_z < lo) dive_z = lo;
+            if (dive_z >= ceiling) {
+                dive_z = ceiling;
+                if (up) if (up_now || now - hold_t > 0.5) SetLevel(L_SURFACE);   // up at the top: surface
+            } else hold_t = now;
+            target = dive_z;
+        }
+    }
+
+    // ---- something in the way: rise over it, and slow down so there is time to
+    float allow = -1.0;
+    if (wall > 0.0 && !landing) {
+        if (target < pos.z + 3.0) target = pos.z + 3.0;
+        allow = (wall - 1.2) * 1.5;
+        if (allow < 0.0) allow = 0.0;
+    }
+    if (target > ceiling) target = ceiling;
+
+    // ---- move there smoothly: up fairly quickly, down gently
+    float dz = target - zt;
+    float k = 1.2;
+    float cap = s_sink;
+    if (dz > 0.0) {
+        k = 3.0;
+        cap = s_climb;
+    }
+    if (level == L_DIVE) if (pos.z < water) {
+        // water is thick: everything slower and rounder
+        k = 2.0;
+        if (cap > 3.0) cap = 3.0;
+    }
+    if (transit || landing) {
+        // a change you asked for: big ones go faster
+        if (llFabs(dz) < 1.0) transit = FALSE;
+        if (cap < llFabs(dz) * 0.35) cap = llFabs(dz) * 0.35;
+    }
+    float step = dz * k * dt;
+    if (step > cap * dt) step = cap * dt;
+    else if (step < -cap * dt) step = -cap * dt;
+    zt += step;
+    float ground = llGround(ZERO_VECTOR) + half;
+    if (zt < ground) zt = ground;          // never into the land
+
+    // ---- bobbing: waves on the surface, a slow drift in the water and while hovering
+    float bob;
+    if (!landing) {
+        if (level == L_DIVE) bob = 0.08 * llSin(now * 0.9);
+        else if (level == L_SURFACE && wet) bob = 0.1 * llSin(now * 2.2) + 0.04 * llSin(now * 5.3 + 1.0);
+        else if (sp < 3.0) bob = 0.12 * llSin(now * 1.3) * (1.0 - sp / 3.0);
+    }
+
+    Send(EVT_AIM, llList2CSV([zt + bob * s_bob, allow, level, wet, height, landing]));
+
+    // ---- landed? then the Engine switches off
+    if (landing) if (!halting) if (pos.z < land_z + 0.35 || now - land_t > 12.0) {
+        halting = TRUE;
+        Send(CMD_HALT, "");
+    }
+    if (h_dirty && !up && !down) {
+        h_dirty = FALSE;
+        llLinksetDataWrite("st:height", (string)height);
+    }
+    if (debug) if (now - dbg_t > 0.5) {
+        dbg_t = now;
+        Send(EVT_DEBUG_LEVELS, llList2CSV([level, pos.z - half - base, water > solid, water - pos.z, pos.z - half - solid, wall]));
+    }
+}
+
+default {
+    state_entry() {
+        owner = llGetOwner();
+        Load();
+        string h = llLinksetDataRead("st:height");
+        if (h != "") height = (float)h;
+    }
+
+    on_rez(integer p) {
+        llResetScript();
+    }
+
+    changed(integer c) {
+        if (c & CHANGED_OWNER) llResetScript();
+    }
+
+    run_time_permissions(integer perm) {
+        if (on || !starting || !(perm & PERMISSION_TAKE_CONTROLS)) return;
+        llTakeControls(CONTROL_UP | CONTROL_DOWN | CONTROL_FWD | CONTROL_BACK, TRUE, FALSE);
+        Begin();
+    }
+
+    control(key id, integer keys, integer edge) {
+        pressed = pressed | (keys & edge & (CONTROL_UP | CONTROL_DOWN));
+        held = keys;
+    }
+
+    timer() {
+        if (on) Tick();
+        else llSetTimerEvent(0.0);
+    }
+
+    link_message(integer from, integer num, string str, key id) {
+        if (num == EVT_STATE) {
+            status = llCSV2List(str);
+            if (Field(S_ACTIVE)) {
+                if (!on && !starting) {
+                    // the Engine has started: take E / C (and W / S, for swimming where you look)
+                    starting = TRUE;
+                    llRequestPermissions(owner, PERMISSION_TAKE_CONTROLS | PERMISSION_TRACK_CAMERA);
+                }
+            }
+            else if (on || starting) Off();
+        }
+        else if (num == CMD_START || num == CMD_LEVEL) {
+            integer lv = -1;
+            if (str != "") lv = (integer)str;
+            if (!on) asked = lv;
+            else if (lv >= 0) ChangeLevel(lv);
+        }
+        else if (num == CMD_HEIGHT) SetHeight(str);
+        else if (num == CMD_STOP) {
+            if (on) if (!landing) {
+                landing = TRUE;
+                land_t = llGetTime();
+                transit = TRUE;
+            }
+        }
+        else if (num == CMD_DEBUG) debug = (integer)str;
+        else if (num == EVT_SETTINGS) Load();
+        else if (num == MSG_MEMORY) Memory("Levels");
+    }
+}
