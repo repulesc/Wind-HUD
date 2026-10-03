@@ -153,7 +153,7 @@ That is what the in-world checklist is for.
 
 Second Life gives each script 64 KB, code included. Sentinel taught us that in
 practice 3,788 tokens started fine and 5,373 crashed, so Wind keeps every script
-under about 3,800 tokens: Levels 3,386, HUD 2,801, Engine 2,652, Config 1,731,
+under about 3,800 tokens: Levels 3,386, HUD 2,801, Engine 2,652, Config 1,763,
 Animator 1,148, Camera 1,087. `/8 memory` prints the real numbers in-world.
 
 ## First flight: in-world checklist (not run yet: I could only test in the simulator)

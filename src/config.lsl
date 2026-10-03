@@ -137,12 +137,13 @@ ListAll() {
 }
 
 Command(string m) {
+    string c8 = "/" + (string)((integer)Cfg("channel")) + " ";
     list w = llParseString2List(m, [" "], []);
     string c = llList2String(w, 0);
     string name = llToLower(llList2String(w, 1));
     if (c == "set") {
         if (llGetListLength(w) < 3) {
-            Say("Use: set name value.  For example: set speed_cruise 7");
+            Say("Use: " + c8 + "set name value.  For example: " + c8 + "set speed_cruise 7");
             return;
         }
         string err = Store(name, llList2String(w, 2));
@@ -162,7 +163,7 @@ Command(string m) {
     else if (c == "defaults") {
         llLinksetDataDeleteFound("^cfg:", "");
         Send(EVT_SETTINGS, "");
-        Say("All settings are back to their defaults. Reload reads the notecard again.");
+        Say("All settings are back to their defaults. " + c8 + "reload reads the notecard again.");
     }
 }
 
