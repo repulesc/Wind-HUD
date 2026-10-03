@@ -319,6 +319,7 @@ Begin() {
     }
     if (lv == L_DIVE && !under && water - solid < half * 2.0 + 1.0) {
         Say("Dive needs deep water below you. Glide out over the sea first.");
+        Off();
         Send(CMD_HALT, "");
         return;
     }
@@ -547,7 +548,7 @@ default {
                     llRequestPermissions(owner, PERMISSION_TAKE_CONTROLS | PERMISSION_TRACK_CAMERA);
                 }
             }
-            else if (on || starting) Off();
+            else Off();      // Wind is off: never keep the keys
         }
         else if (num == CMD_START || num == CMD_LEVEL) {
             integer lv = -1;

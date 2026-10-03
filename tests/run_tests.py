@@ -143,13 +143,17 @@ def mean_speed(w, seconds):
 
 
 def clean(w):
-    """Nothing went wrong behind the scenes."""
+    """Nothing went wrong behind the scenes (and when Wind is off, it holds no keys)."""
     assert not w.errors, "script errors: %s" % w.errors[:5]
     crashed = [s.name + ": " + s.crashed for s in w.scripts if s.crashed]
     assert not crashed, crashed
     full = [n for n in w.notes if "queue full" in n[1]]
     assert not full, full[:3]
     assert w.far_targets == 0, "%d targets beyond 65 m" % w.far_targets
+    if not active(w):
+        w.run(0.5)
+        assert not w.controls, "Wind is off but %s still holds keys" % [s.name for s in w.controls]
+        assert w.mtt is None and w.buoy == 0.0, "Wind is off but still pulls the avatar"
 
 
 # ---- scenarios ------------------------------------------------------------------
@@ -601,6 +605,7 @@ def dive_needs_deep_water():
     assert said(w, "Dive needs deep water")
     assert not active(w)
     assert w.on_ground and w.buoy == 0.0
+    assert not w.controls, "keys still taken by %s" % [s.name for s in w.controls]
     clean(w)
 
 
@@ -747,6 +752,86 @@ def mouselook_dives_where_you_look():
     w.run(4.0)
     assert w.gpos[2] > start_z - 1.0
     w.release(FWD)
+    clean(w)
+
+
+@scenario
+def lands_on_the_water_then_sinks():
+    w = make(start=(600.0, 128.0))               # the Deep: under water
+    lift(w)
+    w.press(UP)
+    w.run(7.0)
+    w.release(UP)
+    w.run(1.0)
+    assert level(w) == 1, w.status()
+    w.touch(w.link_named("power"))
+    w.run(6.0)
+    assert not active(w), w.status()
+    w.run(6.0)
+    assert w.on_ground and w.feet() < 3.0, "did not sink to the sea bed: feet at %.2f" % w.feet()
+    clean(w)
+
+
+@scenario
+def lands_on_a_roof():
+    w = make(start=(60.0, 160.0), yaw=EAST)
+    lift(w)
+    w.press(FWD)
+    while w.gpos[0] < 108.0 and w.t < 60:
+        w.run(0.1)
+    w.release(FWD)
+    w.run(4.0)
+    assert 100 < w.gpos[0] < 120, "not over the tower (x %.1f)" % w.gpos[0]
+    w.touch(w.link_named("power"))
+    w.run(8.0)
+    assert not active(w)
+    assert w.on_ground and abs(w.feet() - 48.0) < 0.2, "not on the roof: feet at %.2f" % w.feet()
+    clean(w)
+
+
+@scenario
+def crosses_a_border_under_water():
+    w = make(start=(256 + 230.0, 128.0), yaw=EAST)   # Bay sea floor, 12 m deep, going east into the Deep
+    lift(w)
+    assert level(w) == 2
+    w.press(FWD)
+    while w.region().name == "Bay" and w.t < 60:
+        w.run(0.1)
+    w.run(3.0)
+    assert w.region().name == "Deep" and level(w) == 2, (w.region().name, w.status())
+    assert w.gpos[2] < 19.0 and w.speed() > 2.5, "lost the dive at the border (z %.2f, speed %.2f)" % (w.gpos[2], w.speed())
+    clean(w)
+
+
+@scenario
+def remembers_height_and_speed():
+    w = make()
+    lift(w)
+    w.chat(8, "high")
+    w.chat(8, "fast")
+    w.run(8.0)
+    w.touch(w.link_named("power"))
+    w.run(10.0)
+    assert not active(w)
+    w.wear()                                     # log out and in again
+    w.run(2.0)
+    lift(w, 10.0)
+    assert w.status()[4] == 40 and w.status()[5] == 2, w.status()
+    assert 38.5 < w.clearance() < 41.5, "not back at High: %.2f" % w.clearance()
+    clean(w)
+
+
+@scenario
+def new_owner_starts_fresh():
+    w = make()
+    w.chat(8, "set speed_cruise 5")
+    w.chat(8, "high")
+    w.lsd["st:owner"] = "someone else"           # as if the HUD was sold or given
+    w.wear()
+    w.run(2.0)
+    assert float(w.lsd["cfg:speed_cruise"]) == 8.0, "old settings kept: %s" % w.lsd.get("cfg:speed_cruise")
+    assert "st:height" not in w.lsd, "old height kept"
+    assert len(said(w, "Welcome to Wind")) == 2, "the new owner was not welcomed"
     clean(w)
 
 
