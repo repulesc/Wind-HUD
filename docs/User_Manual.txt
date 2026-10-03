@@ -1,0 +1,124 @@
+WIND - USER MANUAL
+==================
+
+Wind carries you through a region like the wind: drifting above the
+land and the rooftops, skimming the surface of the sea, or gliding
+through the water underneath it. No flying needed.
+
+
+1. START AND STOP
+-----------------
+Wear the HUD. Then:
+
+    Tap the HUD        rise into the air (or start swimming, if you
+                       are standing under water)
+    Tap it again       land gently where you are
+    Tap twice quickly  stop at once
+    Hold the HUD       the menu
+
+The line above the HUD shows where you are and how fast you go,
+for example:  GLIDE 4 m · Cruise
+
+
+2. MOVING
+---------
+    W / up arrow        forward
+    S / down arrow      slow down, then back away slowly
+    A, D / arrows       turn
+    Shift + A / D       slide sideways
+    W twice and hold    boost (faster while you hold it)
+    E / Page Up         up
+    C / Page Down       down
+
+You speed up and slow down gently, and drift a little when you let go.
+In mouselook you steer with the mouse, and under water you swim where
+you look.
+
+
+3. THE THREE LEVELS
+-------------------
+GLIDE (through the air)
+  You float a chosen height above whatever is below you: land, roofs,
+  trees or water. Hills and buildings ahead are climbed over by
+  themselves. E / C raise and lower the height. The menu has Low (4 m),
+  Mid (15 m) and High (40 m).
+
+SURFACE (on the water)
+  You skim the water and ride its waves. Over land you hover just above
+  the ground, and you settle back on the water when it comes again.
+
+DIVE (under the water)
+  You glide through the water between the bottom and the surface. E / C
+  rise and sink. The camera stays under the water with you.
+
+Moving between them with E and C:
+
+    Glide    hold C to come down; keep holding at the lowest height to
+             settle onto the water (over land: to skim it)
+    Surface  tap C to dive (the water must be deep enough)
+             tap E to lift back into the air
+             over land, hold C to land
+    Dive     hold E to rise; at the top, keep holding to surface
+
+You can also jump straight to a level from the menu, or with the
+Glide / Surface / Dive buttons if your HUD has them.
+
+
+4. THE MENU (hold the HUD)
+--------------------------
+    Glide / Surface / Dive   where you travel
+    Low / Mid / High         how high you glide
+    Gentle / Cruise / Fast   how fast you go
+    Start / Land             switch on or off
+    Options                  camera, sound, text above the HUD, help
+
+Wind remembers your height and speed for next time.
+
+
+5. CHAT COMMANDS
+----------------
+Type them in local chat (only you are heard):
+
+    /8 glide   /8 surface   /8 dive
+    /8 low     /8 mid       /8 high      /8 up      /8 down
+    /8 gentle  /8 cruise    /8 fast      /8 speed (the next one)
+    /8 land    /8 halt (stop at once)    /8 menu    /8 help
+    /8 numbers   live height and speed above the HUD (again: off)
+
+You can put these in gestures to bind them to keys.
+
+
+6. SETTINGS
+-----------
+The notecard "Wind Settings" inside the HUD holds speeds, heights, how
+floaty it feels, the camera and the sounds, each explained. Edit it
+and save it: Wind reads it straight away. To try a value first:
+
+    /8 set speed_cruise 6
+    /8 settings          lists every value
+    /8 reload            reads the notecard again
+    /8 defaults          back to the original values
+
+
+7. GOOD TO KNOW
+---------------
+- Wind is not flying: switch Fly off. If you sit down or teleport, Wind
+  switches itself off. Tap the HUD to go again.
+- Region borders: Wind carries you across. At the edge of the world it
+  stops you gently.
+- "Something you cannot see is in the way": a ban line or an invisible
+  wall. Turn and go another way.
+- On land where scripts are not allowed, the HUD buttons stop working,
+  but Wind still carries you: hold C to land.
+- Wind knows Second Life's own water: the sea, and lakes at sea level.
+  Water made of objects (pools, lakes high on a mountain or in the
+  sky) it cannot tell apart from air or ground, so Surface and Dive
+  only work on the real sea.
+- Indoors is not Wind's place: start outside, under the open sky.
+- Wind changes your camera while it is on. Options > Camera gives your
+  own camera back.
+- If your animation overrider fights Wind's poses, switch the AO off
+  while you glide.
+
+
+Enjoy the view.
