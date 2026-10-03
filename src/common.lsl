@@ -42,9 +42,9 @@ integer EVT_DEBUG_LEVELS = 7102;
 // Levels -> everyone
 integer EVT_SPLASH   = 7103;  // str = "in" or "out" of the water
 // EVT_AIM: Levels -> Engine, ten times a second while on, comma separated:
-// height to hold (region z of the avatar centre), most speed allowed
-// (-1 = any; less near something in the way), level, water below (1/0),
-// glide height, landing (1/0)
+// height to hold (region z of the avatar centre), how far ahead something
+// is in the way (0 = nothing), level, water below (1/0), glide height,
+// landing (1/0)
 integer EVT_AIM      = 7104;
 // Config <-> everyone
 integer EVT_SETTINGS = 7200;  // settings changed: read them again

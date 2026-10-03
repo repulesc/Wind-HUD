@@ -51,9 +51,9 @@ integer EVT_DEBUG_LEVELS = 7102;
 integer EVT_SPLASH   = 7103;  // str = "in" or "out" of the water
 
 // EVT_AIM: Levels -> Engine, ten times a second while on, comma separated:
-// height to hold (region z of the avatar centre), most speed allowed
-// (-1 = any; less near something in the way), level, water below (1/0),
-// glide height, landing (1/0)
+// height to hold (region z of the avatar centre), how far ahead something
+// is in the way (0 = nothing), level, water below (1/0), glide height,
+// landing (1/0)
 integer EVT_AIM      = 7104;
 
 // Config <-> everyone
@@ -147,7 +147,7 @@ key     owner;
 integer on;                // Wind is on and the keys are ours
 integer starting;          // asked for the keys, waiting
 integer level;
-float   height = 4.0;      // Glide: wanted gap between your feet and what is below
+float   height;            // Glide: wanted gap between your feet and what is below (0 = Low)
 integer asked = -1;        // level asked for when starting (-1 = choose)
 integer landing;
 integer halting;           // landed: asked the Engine to switch off
@@ -230,7 +230,7 @@ Sense(vector pos, vector vel, vector ahead, float now, float dt) {
     // in the way: a ray from our middle ahead and down to the level of our feet
     wall = 0.0;
     if (ahead != ZERO_VECTOR) {
-        vector e = pos + ahead * (2.0 + sp);
+        vector e = pos + ahead * (2.0 + sp * 1.5);
         h = Hit(pos, <e.x, e.y, pos.z - half + 0.1>);
         if (h.z > FAR) {
             wall = llVecDist(<pos.x, pos.y, 0.0>, <h.x, h.y, 0.0>) + 0.01;
@@ -448,13 +448,9 @@ Tick() {
         }
     }
 
-    // ---- something in the way: rise over it, and slow down so there is time to
-    float allow = -1.0;
-    if (wall > 0.0 && !landing) {
-        if (target < pos.z + 3.0) target = pos.z + 3.0;
-        allow = (wall - 1.2) * 1.5;
-        if (allow < 0.0) allow = 0.0;
-    }
+    // ---- something in the way: climb as fast as we may until it is gone
+    // (the Engine slows down near it, so there is time to)
+    if (wall > 0.0 && !landing) if (target < zt + 5.0) target = zt + 5.0;
     if (target > ceiling) target = ceiling;
 
     // ---- move there smoothly: up fairly quickly, down gently
@@ -490,7 +486,9 @@ Tick() {
         else if (sp < 3.0) bob = 0.12 * llSin(now * 1.3) * (1.0 - sp / 3.0);
     }
 
-    Send(EVT_AIM, llList2CSV([zt + bob * s_bob, allow, level, wet, height, landing]));
+    float near = wall;
+    if (landing) near = 0.0;
+    Send(EVT_AIM, llList2CSV([zt + bob * s_bob, near, level, wet, height, landing]));
 
     // ---- landed? then the Engine switches off
     if (landing) if (!halting) if (pos.z < land_z + 0.35 || now - land_t > 12.0) {

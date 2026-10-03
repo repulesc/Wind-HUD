@@ -45,9 +45,9 @@ integer EVT_STATE    = 7100;  // str = the S_* fields joined with ","
 integer EVT_DEBUG    = 7101;
 
 // EVT_AIM: Levels -> Engine, ten times a second while on, comma separated:
-// height to hold (region z of the avatar centre), most speed allowed
-// (-1 = any; less near something in the way), level, water below (1/0),
-// glide height, landing (1/0)
+// height to hold (region z of the avatar centre), how far ahead something
+// is in the way (0 = nothing), level, water below (1/0), glide height,
+// landing (1/0)
 integer EVT_AIM      = 7104;
 
 // Config <-> everyone
@@ -134,7 +134,7 @@ integer debug;
 integer aimed;             // an aim has come since starting
 float   aim_t;             // when the last one came
 float   aim_z;             // height to hold
-float   allow = -1.0;      // most speed allowed (-1 = any)
+float   wall;              // something in the way this far ahead (0 = nothing)
 integer level;
 integer wet;
 float   height = 4.0;
@@ -230,7 +230,7 @@ Begin() {
     blocked = FALSE;
     slow_t = 0.0;
     aimed = FALSE;
-    allow = -1.0;
+    wall = 0.0;
     landing = FALSE;
     t_last = llGetTime();
     start_t = t_last;
@@ -330,10 +330,15 @@ Tick() {
     vh += (want - vh) * (dt / (tau + dt));
     vh.z = 0.0;
     vm = llVecMag(vh);
-    // something in the way ahead: slower, so the Levels script can lift us over it
-    if (allow >= 0.0) if (vm > allow) {
-        vh = vh * (allow / vm);
-        vm = allow;
+    // something in the way ahead: slow down, so the Levels script can lift us over it
+    float room = 30.0;
+    if (wall > 0.0) {
+        room = wall - 1.2;
+        if (room < 0.0) room = 0.0;
+        if (vm > room) {
+            vh = vh * (room / vm);
+            vm = room;
+        }
     }
 
     // ---- move the guide; keep it near the avatar
@@ -342,9 +347,16 @@ Tick() {
     vector off = guide - g;
     off.z = 0.0;
     float leash = 3.0 + vm * 1.5;
-    if (leash > 30.0) leash = 30.0;
+    if (leash > room) leash = room;
     if (llVecMag(off) > leash) guide = g + llVecNorm(off) * leash;
-    vector t = guide - corner;
+    // aim a little ahead of the guide, as far as the avatar trails behind
+    // what pulls it: turns and stops then follow your keys closely
+    float lead = s_follow * 1.6;
+    if (lead > s_coast * 0.9) lead = s_coast * 0.9;
+    off = guide + vh * lead - g;
+    off.z = 0.0;
+    if (llVecMag(off) > room) off = llVecNorm(off) * room;
+    vector t = g + off - corner;
     t.z = aim_z;
     // llMoveToTarget ignores a target more than 65 m away
     if (t.z > pos.z + 25.0) t.z = pos.z + 25.0;
@@ -358,8 +370,8 @@ Tick() {
         else if (now - slow_t > 1.5) {
             blocked = TRUE;
             slow_t = 0.0;
+            guide = g - llVecNorm(vh) * 0.5;     // ease off whatever we were pushing against
             vh = ZERO_VECTOR;
-            guide = g;
             Say("Something you cannot see is in the way (a ban line or an invisible wall). Turn and try another way.");
         }
     } else slow_t = 0.0;
@@ -440,14 +452,17 @@ default {
         if (num == EVT_AIM) {
             if (!active) return;
             list a = llCSV2List(str);
+            float was = wall;
             aim_z = llList2Float(a, 0);
-            allow = llList2Float(a, 1);
+            wall = llList2Float(a, 1);
             level = llList2Integer(a, 2);
             wet = llList2Integer(a, 3);
             height = llList2Float(a, 4);
             landing = llList2Integer(a, 5);
             aimed = TRUE;
             aim_t = llGetTime();
+            // something new (or nearer) in the way: brake now, not at the next update
+            if (wall > 0.0) if (was == 0.0 || wall < was - 1.0) Tick();
         }
         else if (num == CMD_START || num == CMD_LEVEL || num == CMD_HEIGHT) Start();
         else if (num == CMD_STOP) {

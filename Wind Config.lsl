@@ -94,6 +94,7 @@ Memory(string who) {
 }
 
 key     query;
+integer counting;          // the question was "how many lines" (it loads the notecard)
 integer line;
 integer good;
 integer bad;
@@ -107,20 +108,42 @@ string CardId() {
 
 Load(integer say) {
     llLinksetDataDeleteFound("^cfg:", "");
+    llLinksetDataDelete("st:card");      // until the whole notecard has been read
     tell = say;
     good = 0;
     bad = 0;
     line = 0;
-    llLinksetDataWrite("st:card", CardId());
     if (llGetInventoryType(SETTINGS_NOTECARD) != INVENTORY_NOTECARD) {
         Done();
         return;
     }
-    query = llGetNotecardLine(SETTINGS_NOTECARD, line);
+    // asking how many lines it has brings the notecard into the region's
+    // memory; then Next() can read it all at once
+    counting = TRUE;
+    query = llGetNumberOfNotecardLines(SETTINGS_NOTECARD);
+}
+
+// Reads on for as long as the region has the notecard ready, then asks
+// for the next line the slow way (one dataserver event per line).
+Next() {
+    while (TRUE) {
+        string s = llGetNotecardLineSync(SETTINGS_NOTECARD, line);
+        if (s == EOF) {
+            Done();
+            return;
+        }
+        if (s == NAK) {
+            query = llGetNotecardLine(SETTINGS_NOTECARD, line);
+            return;
+        }
+        Line(s);
+        ++line;
+    }
 }
 
 Done() {
     query = NULL_KEY;
+    llLinksetDataWrite("st:card", CardId());
     Send(EVT_SETTINGS, "");
     if (tell || bad) {
         string m = "Settings: " + (string)good + " read from the notecard";
@@ -253,13 +276,16 @@ default {
 
     dataserver(key id, string data) {
         if (id != query) return;
-        if (data == EOF) {
+        if (counting) counting = FALSE;
+        else if (data == EOF) {
             Done();
             return;
         }
-        Line(data);
-        ++line;
-        query = llGetNotecardLine(SETTINGS_NOTECARD, line);
+        else {
+            Line(data);
+            ++line;
+        }
+        Next();
     }
 
     link_message(integer from, integer num, string str, key id) {
