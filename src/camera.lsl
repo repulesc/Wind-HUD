@@ -10,12 +10,14 @@
 
 integer on = TRUE;         // setting "camera"
 float   zoom = 1.0;        // setting "cam_zoom"
+float   lag_s = 0.12;      // setting "cam_lag"
 integer mine;              // our camera is in use
 string  applied;           // the camera we set last
 
 Load() {
     on = (integer)Cfg("camera");
     zoom = Cfg("cam_zoom");
+    lag_s = Cfg("cam_lag");
 }
 
 Release() {
@@ -47,16 +49,13 @@ Apply() {
     float dist = 5.0;
     float pitch = 10.0;
     vector focus = <2.0, 0.0, 0.5>;
-    float lag = 0.35;
     if (lv == L_DIVE) {
         dist = 3.2;
         focus = <1.0, 0.0, 0.3>;
-        lag = 0.45;
     } else if (lv == L_SURFACE && Field(S_WATER)) {
         dist = 4.5;
         pitch = 7.0;
         focus = <1.5, 0.0, 0.4>;
-        lag = 0.3;
     } else if (lv == L_GLIDE) {
         // 2 m up: close behind; 42 m and more: far back and looking down
         float n = (Field(S_HEIGHT) - 2.0) / 40.0;
@@ -69,7 +68,7 @@ Apply() {
     dist = dist * zoom;
     if (dist > 10.0) dist = 10.0;
     if (lv == L_DIVE) pitch = DivePitch(dist);
-    string now = llDumpList2String([lv, dist, pitch, focus, lag], "|");
+    string now = llDumpList2String([lv, dist, pitch, focus, lag_s], "|");
     if (now == applied) return;
     applied = now;
     mine = TRUE;
@@ -78,10 +77,10 @@ Apply() {
         CAMERA_DISTANCE, dist,
         CAMERA_PITCH, pitch,
         CAMERA_FOCUS_OFFSET, focus,
-        CAMERA_POSITION_LAG, lag,
-        CAMERA_FOCUS_LAG, 0.1,
+        CAMERA_POSITION_LAG, lag_s,
+        CAMERA_FOCUS_LAG, lag_s * 0.5,
         CAMERA_BEHINDNESS_ANGLE, 20.0,
-        CAMERA_BEHINDNESS_LAG, 0.6,
+        CAMERA_BEHINDNESS_LAG, 0.25,
         CAMERA_POSITION_THRESHOLD, 0.0,
         CAMERA_FOCUS_THRESHOLD, 0.0
     ]);

@@ -8,7 +8,7 @@
 //   Wind Dive      Wind Dive Idle       under the water
 // A missing Idle uses the moving one; a missing level uses Glide; with
 // none of these names, the first animation in the HUD plays everywhere;
-// with no animation at all, Second Life's own fly / hover.
+// with no animation at all, Second Life's upright "hover" pose.
 //
 // Sounds (optional, only you hear the loops):
 //   Wind Glide Loop, Wind Surface Loop, Wind Dive Loop, Wind Splash
@@ -45,8 +45,7 @@ string Pick() {
         if (llGetInventoryType(n) == INVENTORY_ANIMATION) return n;
     }
     if (llGetInventoryNumber(INVENTORY_ANIMATION) > 0) return llGetInventoryName(INVENTORY_ANIMATION, 0);
-    if (Field(S_MOVING)) return "fly";
-    return "hover";
+    return "hover";     // upright; Second Life's "fly" leans forward
 }
 
 Animate() {

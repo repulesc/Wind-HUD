@@ -20,11 +20,19 @@ dive_speed    = 0.5     # under the water: speed times this
 
 
 # ---- FEEL (seconds: smaller is snappier, bigger is floatier) ----------
-accel  = 0.6    # how gently you get up to speed
-turn   = 0.3    # how quickly your path follows when you turn
-coast  = 1.0    # how long you drift on after letting go of the keys
-brake  = 0.35   # how quickly you stop when you press back (S)
-follow = 0.35   # how tightly your avatar follows the wind (0.05 = stiff)
+accel  = 0.3    # how gently you get up to speed (smaller = snappier)
+turn   = 0.2    # how quickly your path follows when you turn
+coast  = 0.6    # how long you drift on after letting go of the keys
+brake  = 0.25   # how quickly you stop when you press back (S)
+follow = 0.25   # how tightly your avatar follows the wind (0.05 = stiff)
+                # Too small and it stutters; the script updates 10 times a second.
+
+
+# ---- BUILDINGS AND TREES ------------------------------------------------
+objects = off   # off: your height follows the ground and water only, and
+                # something in your way stops you (press E to go over it).
+                # on: Wind lifts you over roofs and trees by itself. Lovely in
+                # open country, but in a city it follows every skyline.
 
 
 # ---- GLIDE HEIGHT (metres between your feet and whatever is below:
@@ -50,6 +58,7 @@ bob          = 1.0   # waves and floating motion (0 = none, 2 = double)
 
 # ---- CAMERA, SOUND, HUD -----------------------------------------------
 camera   = on       # off: Wind leaves your camera alone
+cam_lag  = 0.12     # seconds the camera trails behind you (0 = glued, 0.5 = cinematic)
 cam_zoom = 1.0      # camera distance times this (0.5 to 2)
 sound    = on       # Wind's sounds, if the HUD has any
 volume   = 0.6      # 0 to 1

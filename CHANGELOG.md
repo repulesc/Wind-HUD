@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.0 - the feel pass (after the first in-world test)
+
+- **Quicker:** reaches speed in about half the time, follows turns sooner and
+  stops sooner (simulator: speed 2.0 s -> about 1.0 s, stop 3.7 s -> about 2.2 s).
+  New defaults `accel 0.3`, `turn 0.2`, `coast 0.6`, `brake 0.25`, `follow 0.25`.
+- **Camera lag** 0.35-0.6 s -> 0.12 s, and a new setting `cam_lag`.
+- **No forward lean:** with no animation of your own, Wind now plays Second
+  Life's upright `hover` pose, not `fly`.
+- **Calm in cities:** new setting `objects`, off by default. Off: your height
+  follows the ground and water only, and something in your way stops you
+  (E takes you over). On: the 0.1 behaviour of rising over roofs and trees.
+- Manual: removed a sentence about no-script land that was not verified.
+- Tests: 41 scenarios (new: stopping before a tower, a dense city, response
+  times, camera lag).
+
 ## 0.1.0 - complete rewrite (alpha, not yet tested in-world)
 
 Replaces the Gemini "Glide Suite" v1.4 prototype (kept in `prototype/`; see

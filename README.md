@@ -1,4 +1,4 @@
-# Wind (v0.1 alpha)
+# Wind (v0.2 alpha)
 
 A worn HUD for exploring Second Life regions in a magical way, without flying.
 Tap it and the wind lifts you up and carries you: drifting above the land and
@@ -61,14 +61,14 @@ next, what to decide and feature ideas are in [docs/ROADMAP.md](docs/ROADMAP.md)
    `docs/Wind_Settings.txt`, and one named **Wind - User Manual** with
    `docs/User_Manual.txt`. Drop both into the HUD.
 5. **Your animations** (see below) and, if you have them, sounds.
-6. **Wear it** (e.g. HUD Bottom Right). You should see "Welcome to Wind 0.1.0".
+6. **Wear it** (e.g. HUD Bottom Right). You should see "Welcome to Wind 0.2.0".
    Then go through the first-flight checklist below.
 
 ## Your animations
 
 Drop them into the HUD with these names. All are optional: with none of them,
 the first animation in the HUD plays everywhere; with no animation at all,
-Second Life's own "fly" and "hover".
+Second Life's upright "hover" pose (never the forward-leaning "fly").
 
 | Name | Plays |
 |---|---|
@@ -133,7 +133,7 @@ to the notecard, `/8 numbers` shows live height and speed above the HUD.
   in a simulated Second Life: an interpreter built on LSL-PyOptimizer, and a
   world with avatar physics, land, sea, buildings, trees, a pier, an underwater
   rock, region borders, the edge of the world, timer lag, ray casts, camera,
-  animations, menus, notecards and LinksetData. 37 scenarios: lift-off,
+  animations, menus, notecards and LinksetData. 41 scenarios: lift-off,
   cruising, turning, stopping, climbing over a tower and a hill, crossing
   regions (also under water), the edge of the world, all the level changes,
   landing (on land, a roof, the water), menus, chat commands, settings
@@ -161,7 +161,7 @@ Animator 1,148, Camera 1,087. `/8 memory` prints the real numbers in-world.
 Do these in order, somewhere open with land and sea (a Linden coast is ideal).
 Send me what differs, plus the numbers it asks for.
 
-1. Wear the HUD: "Welcome to Wind 0.1.0" appears once. `/8 memory`: send me the
+1. Wear the HUD: "Welcome to Wind 0.2.0" appears once. `/8 memory`: send me the
    six lines (anything under 10 KB free needs trimming).
 2. Tap: you rise smoothly to about 4 m above the ground and hover, gently
    bobbing. Your animation plays (or Second Life's hover), the camera moves
@@ -173,9 +173,9 @@ Send me what differs, plus the numbers it asks for.
    second. Too floaty or too twitchy? Try `/8 set turn 0.2` or `0.5`.
 5. Hold E, then C: the height changes smoothly; the camera pulls back and looks
    down more the higher you are. Menu > High: you rise to about 40 m.
-6. Glide at Low towards a house or a tree: you rise over it without touching it,
-   slowing down if it is tall. Over a forest or a town your height should stay
-   steady, not dip between the trees and roofs.
+6. Glide at Low towards a house or a tree: you stop in front of it (objects = off,
+   the default) and E takes you over. Then `/8 set objects on` and try again: now
+   Wind lifts you over it by itself. Over a town, compare the two: which is calmer?
 7. Cross a region border at Cruise, then at Fast (`/8 fast`): you keep going.
    Tell me if there is any jump or stop at the border.
 8. Over the sea: hold C until you settle on the water (`SURFACE`). Your feet
@@ -208,6 +208,16 @@ Send me what differs, plus the numbers it asks for.
 - `llGetNotecardLineSync` is available (it is since 2024); if the region drops
   the notecard from memory, Wind falls back to reading line by line.
 - Sounds looped from a HUD are heard only by the wearer.
+
+## Tuning notes (0.2)
+
+0.2 is the "feel" pass after the first in-world test: quicker response
+(`accel 0.3`, `turn 0.2`, `coast 0.6`, `brake 0.25`, `follow 0.25`; before 0.6 /
+0.3 / 1.0 / 0.35 / 0.35), the camera trailing by 0.12 s instead of 0.35-0.6 s
+(`cam_lag`), the upright hover pose when you have no animation of your own, and
+rising over buildings and trees switched **off** by default (`objects = off`).
+Going snappier than this makes it stutter, because the Engine updates 10 times
+a second; `follow` below about 0.2 is where it starts.
 
 ## Known limits
 

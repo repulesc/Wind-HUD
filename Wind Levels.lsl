@@ -78,11 +78,13 @@ list CFG = [
     "boost",         1.8,  1.0,   3.0,
     "surface_speed", 0.8,  0.1,   2.0,
     "dive_speed",    0.5,  0.1,   2.0,
-    "accel",         0.6,  0.05,  5.0,
-    "turn",          0.3,  0.05,  5.0,
-    "coast",         1.0,  0.05, 10.0,
-    "brake",         0.35, 0.05,  5.0,
-    "follow",        0.35, 0.05,  2.0,
+    "accel",         0.3,  0.05,  5.0,
+    "turn",          0.2,  0.05,  5.0,
+    "coast",         0.6,  0.05, 10.0,
+    "brake",         0.25, 0.05,  5.0,
+    "follow",        0.25, 0.05,  2.0,
+    "objects",       0.0,  0.0,   1.0,
+    "cam_lag",       0.12, 0.0,   3.0,
     "height_low",    4.0,  1.0, 100.0,
     "height_mid",   15.0,  1.0, 100.0,
     "height_high",  40.0,  1.0, 100.0,
@@ -142,6 +144,7 @@ float s_ride;
 float s_skim;
 float s_depth;
 float s_bob;
+integer s_objects;         // follow roofs and trees (setting "objects")
 
 key     owner;
 integer on;                // Wind is on and the keys are ours
@@ -183,6 +186,7 @@ Load() {
     s_skim = Cfg("land_skim");
     s_depth = Cfg("dive_depth");
     s_bob = Cfg("bob");
+    s_objects = (integer)Cfg("objects");
 }
 
 // The same point, moved inside this region: llGround and llCastRay only
@@ -225,8 +229,11 @@ Sense(vector pos, vector vel, vector ahead, float now, float dt) {
     if (far) p = pos + mdir * (sp * 1.2 + 2.0);
     far = !far;
     p = InRegion(p);
-    vector h = Hit(<p.x, p.y, pos.z + 0.5>, <p.x, p.y, top - 1.0>);
-    if (h.z > top) top = h.z;
+    vector h;
+    if (s_objects) {
+        h = Hit(<p.x, p.y, pos.z + 0.5>, <p.x, p.y, top - 1.0>);
+        if (h.z > top) top = h.z;
+    }
     // in the way: a ray from our middle ahead and down to the level of our feet
     wall = 0.0;
     if (ahead != ZERO_VECTOR) {
@@ -234,7 +241,7 @@ Sense(vector pos, vector vel, vector ahead, float now, float dt) {
         h = Hit(pos, <e.x, e.y, pos.z - half + 0.1>);
         if (h.z > FAR) {
             wall = llVecDist(<pos.x, pos.y, 0.0>, <h.x, h.y, 0.0>) + 0.01;
-            if (h.z > top) top = h.z;
+            if (s_objects) if (h.z > top) top = h.z;
         }
     }
     if (top >= solid) {
@@ -451,7 +458,7 @@ Tick() {
 
     // ---- something in the way: climb as fast as we may until it is gone
     // (the Engine slows down near it, so there is time to)
-    if (wall > 0.0 && !landing) if (target < zt + 5.0) target = zt + 5.0;
+    if (s_objects) if (wall > 0.0 && !landing) if (target < zt + 5.0) target = zt + 5.0;
     if (target > ceiling) target = ceiling;
 
     // ---- move there smoothly: up fairly quickly, down gently

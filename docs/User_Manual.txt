@@ -38,10 +38,12 @@ you look.
 3. THE THREE LEVELS
 -------------------
 GLIDE (through the air)
-  You float a chosen height above whatever is below you: land, roofs,
-  trees or water. Hills and buildings ahead are climbed over by
-  themselves. E / C raise and lower the height. The menu has Low (4 m),
-  Mid (15 m) and High (40 m).
+  You float a chosen height above the ground or water below you. A
+  building or tree in your way stops you in front of it: press and hold
+  E to go over. (Want Wind to lift you over roofs and trees by itself?
+  Type /8 set objects on. Lovely in open country, but in a city it
+  follows every skyline.) E / C raise and lower the height. The menu has
+  Low (4 m), Mid (15 m) and High (40 m).
 
 SURFACE (on the water)
   You skim the water and ride its waves. Over land you hover just above
@@ -108,8 +110,8 @@ and save it: Wind reads it straight away. To try a value first:
   stops you gently.
 - "Something you cannot see is in the way": a ban line or an invisible
   wall. Turn and go another way.
-- On land where scripts are not allowed, the HUD buttons stop working,
-  but Wind still carries you: hold C to land.
+- On land where scripts are not allowed, Wind may not work. Try it
+  before you rely on it.
 - Wind knows Second Life's own water: the sea, and lakes at sea level.
   Water made of objects (pools, lakes high on a mountain or in the
   sky) it cannot tell apart from air or ground, so Surface and Dive

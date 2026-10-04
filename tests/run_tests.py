@@ -249,7 +249,7 @@ def turning_follows():
 @scenario
 def climbs_over_a_tower():
     for k in (0.5, 1.0, 3.0):
-        w = make(start=(60.0, 160.0), yaw=EAST, mtt_k=k)
+        w = make(start=(60.0, 160.0), yaw=EAST, mtt_k=k, notecard=SETTINGS_TEXT + "\nobjects = on\n")
         lift(w)
         watch = Watch(w)
         w.press(FWD)
@@ -561,7 +561,7 @@ def reset_while_reading_the_notecard():
 @scenario
 def survives_lag():
     for seed in (1, 2, 3):
-        w = make(start=(60.0, 160.0), yaw=EAST, lag=0.5, seed=seed)
+        w = make(start=(60.0, 160.0), yaw=EAST, lag=0.5, seed=seed, notecard=SETTINGS_TEXT + "\nobjects = on\n")
         lift(w, 6.0)
         watch = Watch(w)
         w.chat(8, "fast")
@@ -630,7 +630,7 @@ def animation_choices():
     assert w.anims == {"hover"}, w.anims        # nothing in the HUD: Second Life's own
     w.press(FWD)
     w.run(2.0)
-    assert w.anims == {"fly"}, w.anims
+    assert w.anims == {"hover"}, w.anims          # never the forward-leaning "fly"
     w.release(FWD)
     w.run(4.0)
 
@@ -756,6 +756,83 @@ def mouselook_dives_where_you_look():
 
 
 @scenario
+def objects_off_stops_before_a_tower_and_e_goes_over():
+    w = make(start=(60.0, 160.0), yaw=EAST)
+    lift(w)
+    watch = Watch(w)
+    w.press(FWD)
+    w.run(14.0, every=watch)
+    assert 90 < w.gpos[0] < 99.5, "should wait in front of the tower (x %.1f)" % w.gpos[0]
+    assert abs(w.clearance() - 4.0) < 1.0, "must not rise by itself (%.2f)" % w.clearance()
+    assert not w.bumps, w.bumps[:3]
+    w.press(UP)
+    w.run(7.0)                                   # hold E: up past the 23 m roof
+    w.release(UP)
+    w.run(8.0)
+    assert w.gpos[0] > 125, "E did not get over the tower (x %.1f)" % w.gpos[0]
+    clean(w)
+
+
+@scenario
+def city_is_calm_with_objects_off():
+    import random
+    rnd = random.Random(7)
+    boxes = []
+    for i in range(6):
+        for j in range(6):
+            x0, y0 = 40 + i * 36, 40 + j * 36
+            h = rnd.choice([12, 16, 20, 28, 36, 48, 60])
+            boxes.append(Box((x0, y0, 20), (x0 + 26, y0 + 26, 20 + h), "b%d_%d" % (i, j)))
+    global BOXES
+    saved, BOXES = BOXES, boxes
+    try:
+        w = make(start=(22.0, 128.0), yaw=EAST)
+        lift(w)
+        w.chat(8, "high")                        # 40 m: above most of the skyline, chosen by you
+        w.run(8.0)
+        zs = []
+        w.press(FWD)
+        while w.gpos[0] - w.corner[0] < 200 and w.t < 90:
+            w.run(0.1, every=lambda w: zs.append(w.gpos[2]))
+        assert max(zs) - min(zs) < 8.0, "height ranged %.1f m across the city" % (max(zs) - min(zs))
+    finally:
+        BOXES = saved
+    clean(w)
+
+
+@scenario
+def snappy_response():
+    for k in (0.5, 1.0, 3.0):
+        w = make(start=(20.0, 10.0), yaw=NORTH, mtt_k=k)
+        lift(w, 5.0)
+        t0 = w.t
+        w.press(FWD)
+        while w.speed() < 7.2 and w.t - t0 < 6.0:
+            w.run(0.02)
+        limit = 2.0 if k < 1.0 else 1.5          # the soft-pull guess is the slowest case
+        assert w.t - t0 < limit, "k=%s: %.2f s to reach speed (want under %.1f)" % (k, w.t - t0, limit)
+        w.run(2.0)
+        t1 = w.t
+        w.release(FWD)
+        while w.speed() > 0.3 and w.t - t1 < 10:
+            w.run(0.02)
+        limit = 3.5 if k < 1.0 else 3.0
+        assert w.t - t1 < limit, "k=%s: %.2f s to stop (want under %.1f)" % (k, w.t - t1, limit)
+        clean(w)
+
+
+@scenario
+def camera_follows_closely():
+    w = make()
+    lift(w)
+    assert abs(w.camera[C["CAMERA_POSITION_LAG"]] - 0.12) < 0.001, w.camera
+    w.chat(8, "set cam_lag 0.4")
+    w.run(0.5)
+    assert abs(w.camera[C["CAMERA_POSITION_LAG"]] - 0.4) < 0.001, w.camera
+    clean(w)
+
+
+@scenario
 def lands_on_the_water_then_sinks():
     w = make(start=(600.0, 128.0))               # the Deep: under water
     lift(w)
@@ -774,7 +851,7 @@ def lands_on_the_water_then_sinks():
 
 @scenario
 def lands_on_a_roof():
-    w = make(start=(60.0, 160.0), yaw=EAST)
+    w = make(start=(60.0, 160.0), yaw=EAST, notecard=SETTINGS_TEXT + "\nobjects = on\n")
     lift(w)
     w.press(FWD)
     while w.gpos[0] < 108.0 and w.t < 60:
